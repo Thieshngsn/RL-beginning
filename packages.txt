@@ -1,0 +1,8 @@
+numpy
+opencv-python
+Gym
+torch
+torchvision
+torchaudio
+pytorch-ignite
+PTAN
