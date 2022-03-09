@@ -7,3 +7,7 @@ torchaudio
 pytorch-ignite
 PTAN
 pygame
+tensorboardX
+crc32c
+soundfile
+tensorboard
