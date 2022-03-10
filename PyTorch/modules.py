@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as functional
 
 class MyModule(nn.Module):
     def __init__(self, num_in, num_out, drop_prob=0.3):
