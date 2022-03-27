@@ -1,22 +1,32 @@
+from cProfile import label
+import torch
+import torch.nn as nn
+import torch.optim as optim
 import gym
 from collections import namedtuple
 import numpy as np
 from tensorboardX import SummaryWriter
 import matplotlib.pyplot as plt
-
-import torch
-import torch.nn as nn
-import torch.optim as optim
-
-
-HIDDEN_SIZE = 128
-BATCH_SIZE = 16
-PERCENTILE = 70
+import os
+from env import Pong_env
+import time
+import joblib
 
 
-class Net(nn.Module):
+dir_path = os.path.dirname(os.path.realpath(__file__))
+HIDDEN_SIZE = 20
+BATCH_SIZE = 128
+PERCENTILE = 85
+
+Episode = namedtuple('Episode', field_names=['reward', 'steps'])
+EpisodeStep = namedtuple('EpisodeStep', field_names=['observation', 'action'])
+        
+        
+        
+class Brain(nn.Module):
     def __init__(self, obs_size, hidden_size, n_actions):
-        super(Net, self).__init__()
+        print(obs_size, hidden_size, n_actions)
+        super(Brain, self).__init__()
         self.net = nn.Sequential(
             nn.Linear(obs_size, hidden_size),
             nn.ReLU(),
@@ -25,28 +35,67 @@ class Net(nn.Module):
 
     def forward(self, x):
         return self.net(x)
-
-
-Episode = namedtuple('Episode', field_names=['reward', 'steps'])
-EpisodeStep = namedtuple('EpisodeStep', field_names=['observation', 'action'])
-
-
-def iterate_batches(env, net, batch_size):
+    
+    
+    
+def show_single(env, net, fps=100):
+    obs = env.reset()
+    sm = nn.Softmax(dim=1)
+    _time = 1/fps
+    cum_reward = 0
+    while True:
+        start = time.time()
+        env.show()
+        obs_v = torch.FloatTensor([obs])
+        #print(obs_v)
+        act_probs_v = sm(net(obs_v))
+        act_probs = act_probs_v.data.numpy()[0]
+        action = np.random.choice(len(act_probs), p=act_probs)
+        next_obs, reward, is_done = env.step(action)
+        cum_reward += reward
+        if is_done:
+            print('testing reward: ', cum_reward)
+            return
+        obs = next_obs
+        end = time.time()
+        took = start-end
+        if took < _time:
+            time.sleep(_time-took)
+            
+        
+        
+def fps(fun, fps, *args):
+    start = time.time()
+    fun(*args)
+    _time = 1/fps
+    end = time.time()
+    took = start-end
+    if took < _time:
+        time.sleep(_time-took)
+    
+    
+        
+        
+def iterate_batches(env, net, batch_size, show=False):
     batch = []
     episode_reward = 0.0
     episode_steps = []
     obs = env.reset()
     sm = nn.Softmax(dim=1)
     while True:
+        if show:
+            env.show()
+            time.sleep(0.02)
         obs_v = torch.FloatTensor([obs])
         act_probs_v = sm(net(obs_v))
         act_probs = act_probs_v.data.numpy()[0]
         action = np.random.choice(len(act_probs), p=act_probs)
-        next_obs, reward, is_done, _ = env.step(action)
+        next_obs, reward, is_done = env.step(action)
         episode_reward += reward
         step = EpisodeStep(observation=obs, action=action)
         episode_steps.append(step)
         if is_done:
+
             e = Episode(reward=episode_reward, steps=episode_steps)
             batch.append(e)
             episode_reward = 0.0
@@ -74,22 +123,22 @@ def filter_batch(batch, percentile):
     train_obs_v = torch.FloatTensor(train_obs)
     train_act_v = torch.LongTensor(train_act)
     return train_obs_v, train_act_v, reward_bound, reward_mean
-
-
-if __name__ == "__main__":
-    env = gym.make("CartPole-v0")
-    obs_size = env.observation_space.shape[0]
-    n_actions = env.action_space.n
-
-    net = Net(obs_size, HIDDEN_SIZE, n_actions)
+        
+        
+if __name__ == '__main__':
+    print(torch.cuda.is_available())
+    env = Pong_env()
+    net = Brain(env.observation_space_sample.shape[0], 5, env.action_space_sample.shape[0])
     objective = nn.CrossEntropyLoss()
     optimizer = optim.Adam(params=net.parameters(), lr=0.01)
-    writer = SummaryWriter(comment="-cartpole")
-
-    for iter_no, batch in enumerate(iterate_batches(
-            env, net, BATCH_SIZE)):
+    writer = SummaryWriter(comment="-Pong")
+    batches = iterate_batches(env, net, BATCH_SIZE)
+    for iter_no, batch in enumerate(batches):
         obs_v, acts_v, reward_b, reward_m = \
             filter_batch(batch, PERCENTILE)
+        if iter_no % 50 == 0:
+            for i in range(5):
+                show_single(env, net, 200)
         optimizer.zero_grad()
         action_scores_v = net(obs_v)
         loss_v = objective(action_scores_v, acts_v)
@@ -100,24 +149,33 @@ if __name__ == "__main__":
         writer.add_scalar("loss", loss_v.item(), iter_no)
         writer.add_scalar("reward_bound", reward_b, iter_no)
         writer.add_scalar("reward_mean", reward_m, iter_no)
-        if reward_m > 199:
+        if reward_m > 5000:
             print("Solved!")
             break
+    show_single(env, net)
     obs_v = env.reset()
     is_done = False
     sm = nn.Softmax(dim=1)
     cum_reward = 0
-    angles = []
+    tx = []
+    bx = []
     while not is_done:
         obs_v = torch.FloatTensor([obs_v])
-        angles.append(obs_v.data.numpy()[0][2])
+        tx.append(obs_v.data.numpy()[0][0])
+        bx.append(obs_v.data.numpy()[0][1])
         act_probs_v = sm(net(obs_v))
         act_probs = act_probs_v.data.numpy()[0]
-        print(act_probs)
+        #print(act_probs)
         action = np.random.choice(len(act_probs), p=act_probs)
-        obs_v, reward, is_done, _ = env.step(action)
+        obs_v, reward, is_done = env.step(action)
         cum_reward += reward
     print(cum_reward)
-    plt.plot(angles)
+    plt.plot(tx[-3000:], label='Distance Tile Ball')
+    plt.plot(bx[-3000:], label='Ball Y')
+    plt.legend()
     plt.show()
     writer.close()
+    joblib.dump(net, 'pong/pong.joblib')
+    torch.save(net.state_dict(), 'pong\\pong.pth')
+    
+    

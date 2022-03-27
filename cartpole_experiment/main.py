@@ -29,6 +29,7 @@ if __name__ == '__main__':
         env.render()
         action = env.action_space.sample()
         obs, _reward, done, _ = env.step(action)
+        print(obs)
         reward += _reward
         steps += 1
         if done:
