@@ -22,14 +22,14 @@ class Pong_env(object):
         self.action_space_sample = numpy.array([0,0])
         self.observation_space_sample = numpy.array([0,0,0,0])
         
-        self.x_bound = 220
-        self.width=500
-        self.height=800
+        self.x_bound = 270
+        self.width=600
+        self.height=600
         self.win = turtle.Screen()    # Create a screen
         self.win.title('Pong')      # Set the title to paddle
         #self.win.bgcolor('black')     # Set the color to black
         self.win.tracer(0)
-        self.win.setup(width=500, height=800)   # Set the width and height to 600
+        self.win.setup(width=600, height=600)   # Set the width and height to 600
         # Keyboard Control
         self.left = WatchedKey('Left')
         self.right = WatchedKey('Right')
@@ -42,20 +42,20 @@ class Pong_env(object):
         self.tile.shapesize(stretch_wid=1, stretch_len=5)   # Streach the length of square by 5 
         self.tile.penup()
         self.tile.color('black')       # Set the color to white
-        self.tile.goto(0, -365)        # Place the shape on bottom of the screen
+        self.tile.goto(0, -265)        # Place the shape on bottom of the screen
 
         self.ball = turtle.Turtle()      # Create a turtle object
         self.ball.speed(0)
         self.ball.shape('circle')        # Select a circle shape
         self.ball.color('red')           # Set the color to red
         self.ball.penup()
-        self.ball.goto(0, -250)           # Place the shape in middle
+        self.ball.goto(0, -200)           # Place the shape in middle
         #print(len(self.win.turtles()))
         if random.random() > 0.5:
-            self.ball.dx = random.random() *4   # ball's x-axis velocity 
+            self.ball.dx = random.random() *8 + 2   # ball's x-axis velocity 
             
         else:
-            self.ball.dx = -random.random() *4
+            self.ball.dx = -random.random() *8 -2
         self.ball.dy = 5  # ball's y-axis velocity 
         
         self.is_done = False
@@ -68,7 +68,7 @@ class Pong_env(object):
         x = self.tile.xcor()
         m = (act-0.5) * 2
         if (m ==-1 and x > -self.x_bound) or (m == 1 and x < self.x_bound):
-            self.tile.setx(x + (m * 2))
+            self.tile.setx(x + (m * 10))
             
     def tile_within_bounds(self) -> bool:
         if -self.x_bound-5 < self.tile.xcor() < self.x_bound+5:
@@ -99,9 +99,9 @@ class Pong_env(object):
             self.hit = True
             self.ball.dy *= -1
             if random.random() > 0.5:
-                self.ball.dx = random.random() * 2 + 2  # ball's x-axis velocity
+                self.ball.dx = random.random() * 8 + 2  # ball's x-axis velocity
             else:
-                self.ball.dx = -random.random() * 2 -2   # ball's x-axis velocity
+                self.ball.dx = -random.random() * 8 -2   # ball's x-axis velocity
 
         # Ball-Ground collison            
         if self.ball.ycor() < -(self.height/2)-10:   # If ball touch the ground 

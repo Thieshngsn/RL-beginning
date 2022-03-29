@@ -14,9 +14,9 @@ import joblib
 
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
-HIDDEN_SIZE = 20
+HIDDEN_SIZE = 32
 BATCH_SIZE = 128
-PERCENTILE = 85
+PERCENTILE = 90
 
 Episode = namedtuple('Episode', field_names=['reward', 'steps'])
 EpisodeStep = namedtuple('EpisodeStep', field_names=['observation', 'action'])
